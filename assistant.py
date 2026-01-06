@@ -2,7 +2,7 @@
 import os
 import json
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import anthropic
@@ -39,6 +39,89 @@ class ExecutiveAssistant:
         self.client = anthropic.Anthropic(api_key=api_key)
         self.conversation_history = []
         self.tz = ZoneInfo(DEFAULT_TIMEZONE)
+        self.state_file = 'assistant_state.json'
+        self.exclusion_file = 'email_exclusions.json'
+        self._load_state()
+        # Store previous login before updating
+        self.previous_login = self.last_login
+        self._update_last_login()
+    
+    def _load_state(self):
+        """Load assistant state (last login, exclusion list, etc.)."""
+        self.last_login = None
+        self.exclusion_domains = []
+        
+        # Load last login time
+        if os.path.exists(self.state_file):
+            try:
+                with open(self.state_file, 'r') as f:
+                    state = json.load(f)
+                    if 'last_login' in state:
+                        last_login_str = state['last_login']
+                        # Handle both timezone-aware and naive datetime strings
+                        if '+' in last_login_str or last_login_str.endswith('Z'):
+                            self.last_login = datetime.fromisoformat(last_login_str.replace('Z', '+00:00'))
+                        else:
+                            self.last_login = datetime.fromisoformat(last_login_str)
+                            self.last_login = self.last_login.replace(tzinfo=self.tz)
+            except Exception as e:
+                print(f"Warning: Could not load state: {e}")
+        
+        # Load exclusion domains
+        if os.path.exists(self.exclusion_file):
+            try:
+                with open(self.exclusion_file, 'r') as f:
+                    exclusions = json.load(f)
+                    self.exclusion_domains = exclusions.get('domains', [])
+            except Exception as e:
+                print(f"Warning: Could not load exclusions: {e}")
+    
+    def _save_state(self):
+        """Save assistant state."""
+        try:
+            with open(self.state_file, 'w') as f:
+                json.dump({
+                    'last_login': datetime.now(self.tz).isoformat()
+                }, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save state: {e}")
+    
+    def _save_exclusions(self):
+        """Save exclusion domains list."""
+        try:
+            with open(self.exclusion_file, 'w') as f:
+                json.dump({
+                    'domains': self.exclusion_domains
+                }, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save exclusions: {e}")
+    
+    def _update_last_login(self):
+        """Update last login timestamp."""
+        self.last_login = datetime.now(self.tz)
+        self._save_state()
+    
+    def add_exclusion_domain(self, domain: str) -> bool:
+        """Add a domain to the exclusion list."""
+        domain = domain.lower().strip()
+        if domain and domain not in self.exclusion_domains:
+            self.exclusion_domains.append(domain)
+            self._save_exclusions()
+            return True
+        return False
+    
+    def remove_exclusion_domain(self, domain: str) -> bool:
+        """Remove a domain from the exclusion list."""
+        domain = domain.lower().strip()
+        if domain in self.exclusion_domains:
+            self.exclusion_domains.remove(domain)
+            self._save_exclusions()
+            return True
+        return False
+    
+    def get_exclusion_domains(self) -> List[str]:
+        """Get list of excluded domains."""
+        return self.exclusion_domains.copy()
     
     def _get_current_time_context(self) -> str:
         """Get detailed current time context to help Claude with date calculations."""
@@ -181,6 +264,55 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
                     },
                     "required": ["event_id"]
                 }
+            },
+            {
+                "name": "get_new_emails_since_login",
+                "description": "Get new emails received since the last login. Only includes emails from primary mailbox, excluding promotional/marketing emails.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "max_results": {
+                            "type": "integer",
+                            "description": "Maximum number of emails to return (default 20)"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "add_exclusion_domain",
+                "description": "Add a domain or URL to the exclusion list to filter out promotional emails from that sender.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "domain": {
+                            "type": "string",
+                            "description": "Domain name or URL to exclude (e.g., 'example.com' or 'newsletter.example.com')"
+                        }
+                    },
+                    "required": ["domain"]
+                }
+            },
+            {
+                "name": "remove_exclusion_domain",
+                "description": "Remove a domain from the exclusion list.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "domain": {
+                            "type": "string",
+                            "description": "Domain name to remove from exclusion list"
+                        }
+                    },
+                    "required": ["domain"]
+                }
+            },
+            {
+                "name": "get_exclusion_domains",
+                "description": "Get the list of excluded domains/URLs.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
             }
         ]
     
@@ -305,6 +437,68 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
                         "message": f"Failed to delete event: {event_summary}. It may have already been deleted or the ID is invalid."
                     })
             
+            elif tool_name == "get_new_emails_since_login":
+                max_results = tool_input.get("max_results", 20)
+                
+                # Use previous_login if available (before this session), otherwise use last_login
+                since_date = getattr(self, 'previous_login', None) or self.last_login
+                
+                if since_date is None:
+                    # If no previous login, get emails from last 24 hours
+                    since_date = datetime.now(self.tz) - timedelta(days=1)
+                
+                emails = self.google.get_emails_since(
+                    since_date=since_date,
+                    max_results=max_results,
+                    exclude_promotional=True,
+                    exclusion_domains=self.exclusion_domains
+                )
+                
+                return json.dumps({
+                    "count": len(emails),
+                    "since": since_date.isoformat(),
+                    "emails": emails
+                }, default=str)
+            
+            elif tool_name == "add_exclusion_domain":
+                domain = tool_input["domain"]
+                success = self.add_exclusion_domain(domain)
+                
+                if success:
+                    return json.dumps({
+                        "success": True,
+                        "message": f"Added '{domain}' to exclusion list",
+                        "excluded_domains": self.get_exclusion_domains()
+                    })
+                else:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Domain '{domain}' is already in exclusion list or invalid"
+                    })
+            
+            elif tool_name == "remove_exclusion_domain":
+                domain = tool_input["domain"]
+                success = self.remove_exclusion_domain(domain)
+                
+                if success:
+                    return json.dumps({
+                        "success": True,
+                        "message": f"Removed '{domain}' from exclusion list",
+                        "excluded_domains": self.get_exclusion_domains()
+                    })
+                else:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Domain '{domain}' not found in exclusion list"
+                    })
+            
+            elif tool_name == "get_exclusion_domains":
+                domains = self.get_exclusion_domains()
+                return json.dumps({
+                    "count": len(domains),
+                    "domains": domains
+                })
+            
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
         
         except Exception as e:
@@ -338,6 +532,8 @@ Key responsibilities:
 4. ALWAYS flag conflicts with important events (interviews, deadlines, presentations)
 5. Suggest alternative times when conflicts exist
 6. Delete events when requested
+7. Provide email updates since last login (automatically on startup)
+8. Manage exclusion list for filtering promotional emails
 
 DELETING EVENTS:
 - When the user asks to delete/remove/cancel an event, first use find_event to search for it
@@ -428,9 +624,31 @@ def main():
         print(f"✅ Connected to Claude API")
         print(f"📅 Current time: {now.strftime('%A, %B %d, %Y at %I:%M %p %Z')}")
         print("=" * 50)
+        
+        # Show email updates since last login
+        if assistant.previous_login:
+            time_since = now - assistant.previous_login
+            if time_since.total_seconds() > 60:  # Only show if more than 1 minute since last login
+                print("\n📧 Checking for new emails since last login...")
+                try:
+                    email_response = assistant.chat("Show me new emails since I last logged in. Only show emails from my primary mailbox, excluding promotional and marketing emails.")
+                    print(f"\n{email_response}\n")
+                except Exception as e:
+                    print(f"⚠️  Could not fetch email updates: {e}\n")
+        else:
+            print("\n📧 This is your first login. Checking recent emails...")
+            try:
+                email_response = assistant.chat("Show me my recent emails from the primary mailbox, excluding promotional and marketing emails.")
+                print(f"\n{email_response}\n")
+            except Exception as e:
+                print(f"⚠️  Could not fetch email updates: {e}\n")
+        
+        print("=" * 50)
         print("\nHow to use:")
         print("  • Type naturally: 'Schedule lunch Tuesday at noon'")
         print("  • Ask questions: 'When am I free this week?'")
+        print("  • Email updates: 'Show me new emails' or 'What emails do I have?'")
+        print("  • Manage exclusions: 'Add example.com to exclusion list'")
         print("  • Type 'quit' to exit")
         print("  • Type 'clear' to reset conversation")
         print("=" * 50 + "\n")

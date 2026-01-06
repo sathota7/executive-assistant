@@ -1,8 +1,10 @@
 # google_services.py
 import os
 import base64
+import re
+import email.utils
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from zoneinfo import ZoneInfo
 
 from google.auth.transport.requests import Request
@@ -115,6 +117,113 @@ class GoogleServices:
             return ''
         
         return extract_body(msg['payload'])
+    
+    def _is_promotional_email(self, email_data: dict, exclusion_domains: List[str] = None) -> bool:
+        """Check if an email is promotional/marketing based on various signals."""
+        if exclusion_domains is None:
+            exclusion_domains = []
+        
+        from_addr = email_data.get('from', '').lower()
+        subject = email_data.get('subject', '').lower()
+        snippet = email_data.get('snippet', '').lower()
+        
+        # Check exclusion domains
+        for domain in exclusion_domains:
+            if domain.lower() in from_addr:
+                return True
+        
+        # Common promotional indicators
+        promotional_keywords = [
+            'unsubscribe', 'marketing', 'promotion', 'special offer', 'limited time',
+            'act now', 'buy now', 'discount', 'sale', 'deal', 'coupon', 'newsletter',
+            'sponsored', 'advertisement', 'ad', 'promo code', 'exclusive offer'
+        ]
+        
+        # Check subject and snippet for promotional keywords
+        text_to_check = f"{subject} {snippet}"
+        if any(keyword in text_to_check for keyword in promotional_keywords):
+            return True
+        
+        # Check for common promotional email patterns
+        promotional_patterns = [
+            r'noreply@', r'no-reply@', r'donotreply@', r'newsletter@',
+            r'marketing@', r'promo@', r'sales@', r'offers@'
+        ]
+        
+        for pattern in promotional_patterns:
+            if re.search(pattern, from_addr):
+                return True
+        
+        # Check for list-unsubscribe header (common in marketing emails)
+        # This would require getting full email headers, so we'll skip for now
+        
+        return False
+    
+    def _extract_domain_from_email(self, from_addr: str) -> str:
+        """Extract domain from email address."""
+        # Extract email from "Name <email@domain.com>" or just "email@domain.com"
+        match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', from_addr)
+        if match:
+            email_addr = match.group(0)
+            return email_addr.split('@')[1].lower()
+        return ''
+    
+    def get_emails_since(self, since_date: datetime, max_results: int = 50, 
+                        exclude_promotional: bool = True, 
+                        exclusion_domains: List[str] = None) -> list:
+        """Get emails since a specific date, optionally filtering out promotional emails."""
+        since_date = self._ensure_timezone(since_date)
+        
+        # Gmail search query for emails after a specific date
+        # Format: after:YYYY/MM/DD
+        date_str = since_date.strftime('%Y/%m/%d')
+        query = f'after:{date_str}'
+        
+        # Exclude promotional emails from primary mailbox
+        if exclude_promotional:
+            query += ' -category:promotions -category:social -category:updates'
+        
+        results = self.gmail.users().messages().list(
+            userId='me', 
+            maxResults=max_results, 
+            q=query
+        ).execute()
+        
+        messages = results.get('messages', [])
+        emails = []
+        
+        for msg in messages:
+            email_data = self.gmail.users().messages().get(
+                userId='me', id=msg['id'], format='metadata',
+                metadataHeaders=['From', 'Subject', 'Date', 'List-Unsubscribe']
+            ).execute()
+            
+            headers = {h['name']: h['value'] for h in email_data['payload']['headers']}
+            
+            email_info = {
+                'id': msg['id'],
+                'from': headers.get('From', ''),
+                'subject': headers.get('Subject', ''),
+                'date': headers.get('Date', ''),
+                'snippet': email_data.get('snippet', ''),
+                'domain': self._extract_domain_from_email(headers.get('From', ''))
+            }
+            
+            # Additional filtering for promotional emails
+            if exclude_promotional:
+                if self._is_promotional_email(email_info, exclusion_domains):
+                    continue
+            
+            # Parse date for better formatting
+            try:
+                parsed_date = email.utils.parsedate_to_datetime(headers.get('Date', ''))
+                email_info['parsed_date'] = parsed_date.isoformat() if parsed_date else None
+            except:
+                email_info['parsed_date'] = None
+            
+            emails.append(email_info)
+        
+        return emails
     
     # ===== CALENDAR METHODS =====
     
