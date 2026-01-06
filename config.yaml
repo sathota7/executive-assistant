@@ -1,0 +1,36 @@
+# config.yaml
+# Configuration for your executive assistant
+
+# Work hours (24-hour format)
+work_hours:
+  start: 9
+  end: 17
+
+# Days to consider for scheduling (0=Monday, 6=Sunday)
+work_days: [0, 1, 2, 3, 4]  # Monday through Friday
+
+# Default meeting duration (minutes)
+default_meeting_duration: 60
+
+# Buffer time between meetings (minutes)
+meeting_buffer: 15
+
+# Priority keywords - events containing these will be flagged
+priority_keywords:
+  - interview
+  - deadline
+  - presentation
+  - board meeting
+  - final
+  - urgent
+  - important
+  - review
+  - submission
+  - flight
+  - doctor
+
+# Notification settings
+notifications:
+  enabled: true
+  remind_before_minutes: 30
+  daily_summary_time: "08:00"
