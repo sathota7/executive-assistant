@@ -2,6 +2,8 @@
 
 An AI-powered executive assistant that manages Google Calendar and Gmail using Claude (Anthropic). It helps you schedule events, find free times, check for conflicts, and manage your calendar through natural language conversations.
 
+Executive assistant capable of managing google calendar, reading gmail schedule requests, prioritizing conflicting calendar holds, and holding daily-to-do list.
+
 ## Features
 
 - 📅 **Calendar Management**: Create, delete, and search calendar events using natural language
@@ -90,4 +92,3 @@ These files are already in `.gitignore`.
 ## License
 
 MIT License
-

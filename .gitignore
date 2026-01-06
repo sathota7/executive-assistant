@@ -3,3 +3,5 @@ token.json
 credentials.json
 __pycache__/
 *.pyc
+push.sh
+PUSH_INSTRUCTIONS.md
