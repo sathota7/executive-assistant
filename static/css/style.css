@@ -147,6 +147,13 @@ header h1 {
     gap: 20px;
 }
 
+/* Calendar specific: 5 columns, 2 rows */
+#calendar-events {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+}
+
 .tile {
     background: #f9f9f9;
     border: 2px solid #e0e0e0;
@@ -203,6 +210,17 @@ header h1 {
 .tile.priority .tile-title {
     font-weight: bold;
     color: #ff6b6b;
+}
+
+.empty-slot {
+    visibility: hidden;
+    border: none;
+    background: transparent;
+}
+
+.empty-slot:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 .tile-title {
@@ -470,6 +488,10 @@ header h1 {
         grid-template-columns: 1fr;
     }
     
+    #calendar-events {
+        grid-template-columns: 1fr;
+    }
+    
     .section-header {
         flex-direction: column;
         align-items: flex-start;
@@ -477,6 +499,18 @@ header h1 {
     
     header h1 {
         font-size: 2em;
+    }
+}
+
+@media (max-width: 1400px) {
+    #calendar-events {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1200px) {
+    #calendar-events {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

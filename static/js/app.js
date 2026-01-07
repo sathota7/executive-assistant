@@ -94,7 +94,11 @@ async function loadCalendar() {
             return;
         }
         
-        container.innerHTML = data.events.map(event => `
+        // Render exactly up to 10 events, pad to 10 slots for 5x2 grid
+        const eventsToShow = data.events.slice(0, 10);
+        const emptySlots = 10 - eventsToShow.length;
+        
+        let html = eventsToShow.map(event => `
             <div class="tile calendar-tile ${event.is_priority ? 'priority' : ''}">
                 <div class="tile-title">${escapeHtml(event.title)}</div>
                 <div class="calendar-time">${event.start_display}</div>
@@ -102,6 +106,13 @@ async function loadCalendar() {
                 ${event.htmlLink ? `<a href="${event.htmlLink}" target="_blank" class="tile-link">Open in Calendar →</a>` : ''}
             </div>
         `).join('');
+        
+        // Add empty slots to maintain 5x2 grid layout
+        for (let i = 0; i < emptySlots; i++) {
+            html += '<div class="tile calendar-tile empty-slot"></div>';
+        }
+        
+        container.innerHTML = html;
     } catch (error) {
         loading.style.display = 'none';
         container.innerHTML = `<p style="color: red;">Error loading calendar: ${error.message}</p>`;

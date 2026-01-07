@@ -54,15 +54,15 @@ def chat():
 
 @app.route('/api/calendar/upcoming', methods=['GET'])
 def get_upcoming_calendar():
-    """Get upcoming calendar events"""
+    """Get upcoming calendar events - exactly 10 events"""
     assistant = get_assistant()
     if not assistant:
         return jsonify({'error': 'Assistant not initialized'}), 500
     
     try:
-        events = assistant.google.get_events(days_ahead=30)
+        events = assistant.google.get_events(days_ahead=60)  # Get more to ensure we have 10
         
-        # Sort by start time and get next 10
+        # Sort by start time and get exactly next 10
         upcoming_events = []
         now = datetime.now(assistant.tz)
         
@@ -97,11 +97,11 @@ def get_upcoming_calendar():
             except Exception as e:
                 continue
         
-        # Sort by start time and take top 10
+        # Sort by start time and take exactly 10
         upcoming_events.sort(key=lambda x: x['start'])
         upcoming_events = upcoming_events[:10]
         
-        return jsonify({'events': upcoming_events})
+        return jsonify({'events': upcoming_events})  # Return exactly 10 or less
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
