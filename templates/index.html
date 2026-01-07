@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Executive Assistant</h1>
+            <p class="subtitle">Your personal productivity hub</p>
+        </header>
+
+        <!-- General Questions Section -->
+        <section class="section" id="general-questions">
+            <h2>General Questions</h2>
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chat-input" placeholder="Ask me anything... (e.g., 'Schedule lunch Tuesday at noon', 'When am I free this week?')" />
+                    <button id="send-button">Send</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upcoming Calendar Section -->
+        <section class="section" id="calendar-section">
+            <h2>Upcoming Calendar Invites</h2>
+            <div id="calendar-loading" class="loading">Loading calendar events...</div>
+            <div id="calendar-events" class="tile-container"></div>
+        </section>
+
+        <!-- Email Updates Section -->
+        <section class="section" id="email-section">
+            <div class="section-header">
+                <h2>Email Updates</h2>
+                <div class="header-buttons">
+                    <button class="btn-secondary" onclick="clearDismissedEmails()">Restore Dismissed</button>
+                    <button class="btn-secondary" onclick="showExclusionsModal()">Manage Exclusions</button>
+                </div>
+            </div>
+            <div id="email-loading" class="loading">Loading emails...</div>
+            <div id="email-list" class="email-list"></div>
+        </section>
+
+        <!-- News Updates Section -->
+        <section class="section" id="news-section">
+            <div class="section-header">
+                <h2>News Updates</h2>
+                <div class="news-toggles">
+                    <button class="news-toggle active" data-topic="general" onclick="loadNews('general')">General</button>
+                    <button class="news-toggle" data-topic="business" onclick="loadNews('business')">Business</button>
+                    <button class="news-toggle" data-topic="marketing" onclick="loadNews('marketing')">Marketing</button>
+                    <button class="news-toggle" data-topic="stocks" onclick="loadNews('stocks')">Stocks</button>
+                    <button class="news-toggle" data-topic="technology" onclick="loadNews('technology')">Technology</button>
+                </div>
+            </div>
+            <div id="news-loading" class="loading">Loading news...</div>
+            <div id="news-articles" class="tile-container"></div>
+        </section>
+
+        <!-- Reddit Updates Section -->
+        <section class="section" id="reddit-section">
+            <h2>Reddit Updates</h2>
+            <div id="reddit-loading" class="loading">Loading Reddit posts...</div>
+            <div id="reddit-posts" class="tile-container"></div>
+        </section>
+    </div>
+
+    <!-- Exclusions Modal -->
+    <div id="exclusions-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeExclusionsModal()">&times;</span>
+            <h2>Manage Email Exclusions</h2>
+            <div class="exclusions-list">
+                <div id="exclusions-container"></div>
+                <div class="add-exclusion">
+                    <input type="text" id="new-exclusion" placeholder="Enter domain (e.g., example.com)" />
+                    <button onclick="addExclusion()">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+

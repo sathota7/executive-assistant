@@ -14,6 +14,7 @@ from googleapiclient.discovery import build
 
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/calendar'
 ]
 
@@ -118,6 +119,61 @@ class GoogleServices:
         
         return extract_body(msg['payload'])
     
+    def send_email(self, to: str, subject: str, body: str, 
+                   cc: Optional[str] = None, bcc: Optional[str] = None) -> dict:
+        """
+        Send an email via Gmail.
+        
+        Args:
+            to: Recipient email address(es) - comma-separated for multiple
+            subject: Email subject
+            body: Email body (plain text)
+            cc: CC email address(es) - comma-separated for multiple (optional)
+            bcc: BCC email address(es) - comma-separated for multiple (optional)
+        
+        Returns:
+            Dictionary with message ID and status
+        """
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Create message
+        message = MIMEMultipart()
+        message['To'] = to
+        message['Subject'] = subject
+        
+        if cc:
+            message['Cc'] = cc
+        if bcc:
+            message['Bcc'] = bcc
+        
+        # Add body
+        message.attach(MIMEText(body, 'plain'))
+        
+        # Encode message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Send message
+        try:
+            send_message = {'raw': raw_message}
+            result = self.gmail.users().messages().send(
+                userId='me',
+                body=send_message
+            ).execute()
+            
+            return {
+                'success': True,
+                'message_id': result.get('id'),
+                'thread_id': result.get('threadId'),
+                'message': 'Email sent successfully'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'message': f'Failed to send email: {str(e)}'
+            }
+    
     def _is_promotional_email(self, email_data: dict, exclusion_domains: List[str] = None) -> bool:
         """Check if an email is promotional/marketing based on various signals."""
         if exclusion_domains is None:
@@ -168,16 +224,39 @@ class GoogleServices:
             return email_addr.split('@')[1].lower()
         return ''
     
+    def get_user_email(self) -> str:
+        """Get the user's email address."""
+        try:
+            profile = self.gmail.users().getProfile(userId='me').execute()
+            return profile.get('emailAddress', '')
+        except Exception:
+            return ''
+    
     def get_emails_since(self, since_date: datetime, max_results: int = 50, 
                         exclude_promotional: bool = True, 
-                        exclusion_domains: List[str] = None) -> list:
-        """Get emails since a specific date, optionally filtering out promotional emails."""
+                        exclusion_domains: List[str] = None,
+                        inbound_only: bool = True) -> list:
+        """
+        Get emails since a specific date, optionally filtering out promotional emails.
+        
+        Args:
+            since_date: Date to get emails since
+            max_results: Maximum number of emails to return
+            exclude_promotional: Whether to exclude promotional emails
+            exclusion_domains: List of domains to exclude
+            inbound_only: Only return inbound (received) emails, exclude sent emails
+        """
         since_date = self._ensure_timezone(since_date)
         
         # Gmail search query for emails after a specific date
         # Format: after:YYYY/MM/DD
         date_str = since_date.strftime('%Y/%m/%d')
         query = f'after:{date_str}'
+        
+        # Only show inbox emails (naturally excludes sent emails)
+        # Also exclude sent emails explicitly
+        if inbound_only:
+            query += ' in:inbox -from:me'
         
         # Exclude promotional emails from primary mailbox
         if exclude_promotional:
@@ -199,6 +278,19 @@ class GoogleServices:
             ).execute()
             
             headers = {h['name']: h['value'] for h in email_data['payload']['headers']}
+            
+            # Additional check: ensure this is not a sent email
+            if inbound_only:
+                # Check labels to ensure it's not in SENT
+                labels = email_data.get('labelIds', [])
+                if 'SENT' in labels:
+                    continue
+                
+                # Double-check: if From header contains user's email, skip
+                from_addr = headers.get('From', '')
+                user_email = self.get_user_email()
+                if user_email and user_email.lower() in from_addr.lower():
+                    continue
             
             email_info = {
                 'id': msg['id'],

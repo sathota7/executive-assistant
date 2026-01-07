@@ -8,3 +8,8 @@ PUSH_INSTRUCTIONS.md
 assistant_state.json
 email_exclusions.json
 reddit_tokens.json
+instance/
+*.db
+.flaskenv
+reddit_services.py
+background_monitor.py

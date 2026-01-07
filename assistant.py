@@ -399,6 +399,36 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
                         }
                     }
                 }
+            },
+            {
+                "name": "send_email",
+                "description": "Send an email to one or more recipients. Use this when the user wants to send an email.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "to": {
+                            "type": "string",
+                            "description": "Recipient email address(es). For multiple recipients, use comma-separated list (e.g., 'user1@example.com, user2@example.com')"
+                        },
+                        "subject": {
+                            "type": "string",
+                            "description": "Email subject line"
+                        },
+                        "body": {
+                            "type": "string",
+                            "description": "Email body content (plain text)"
+                        },
+                        "cc": {
+                            "type": "string",
+                            "description": "CC email address(es) - comma-separated for multiple (optional)"
+                        },
+                        "bcc": {
+                            "type": "string",
+                            "description": "BCC email address(es) - comma-separated for multiple (optional)"
+                        }
+                    },
+                    "required": ["to", "subject", "body"]
+                }
             }
         ]
     
@@ -632,6 +662,47 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
                         "error": f"Failed to fetch news: {str(e)}"
                     })
             
+            elif tool_name == "send_email":
+                to = tool_input.get("to", "").strip()
+                subject = tool_input.get("subject", "").strip()
+                body = tool_input.get("body", "").strip()
+                cc = tool_input.get("cc", "").strip() or None
+                bcc = tool_input.get("bcc", "").strip() or None
+                
+                if not to or not subject or not body:
+                    return json.dumps({
+                        "success": False,
+                        "error": "Missing required fields: to, subject, and body are required"
+                    })
+                
+                try:
+                    result = self.google.send_email(
+                        to=to,
+                        subject=subject,
+                        body=body,
+                        cc=cc,
+                        bcc=bcc
+                    )
+                    
+                    if result.get('success'):
+                        return json.dumps({
+                            "success": True,
+                            "message": f"Email sent successfully to {to}",
+                            "message_id": result.get('message_id')
+                        })
+                    else:
+                        return json.dumps({
+                            "success": False,
+                            "error": result.get('error', 'Unknown error'),
+                            "message": result.get('message', 'Failed to send email')
+                        })
+                except Exception as e:
+                    return json.dumps({
+                        "success": False,
+                        "error": str(e),
+                        "message": f"Failed to send email: {str(e)}"
+                    })
+            
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
         
         except Exception as e:
@@ -669,6 +740,7 @@ Key responsibilities:
 8. Manage exclusion list for filtering promotional emails
 9. Show top Reddit posts from subscribed subreddits (automatically on startup)
 10. Show top news articles by topic (automatically on startup with general news)
+11. Send emails with recipient, subject, body, and optional CC/BCC
 
 DELETING EVENTS:
 - When the user asks to delete/remove/cancel an event, first use find_event to search for it

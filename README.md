@@ -109,6 +109,7 @@ Once running, you can interact with the assistant using natural language:
 - **Check conflicts**: "Do I have any conflicts on Thursday?"
 - **Delete events**: "Cancel my meeting on Friday"
 - **Search emails**: "Check my emails for scheduling requests"
+- **Send emails**: "Send an email to john@example.com with subject 'Meeting' and body 'Let's meet tomorrow'"
 - **Reddit posts**: "Show me top Reddit posts" or "What's hot on Reddit today?"
 - **News articles**: "Show me top news about business" or "Get marketing news" or "What's the latest on stocks?"
 
