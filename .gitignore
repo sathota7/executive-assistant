@@ -7,3 +7,4 @@ push.sh
 PUSH_INSTRUCTIONS.md
 assistant_state.json
 email_exclusions.json
+reddit_tokens.json
