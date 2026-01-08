@@ -8,6 +8,7 @@ PUSH_INSTRUCTIONS.md
 assistant_state.json
 email_exclusions.json
 reddit_tokens.json
+llm_provider_state.json
 instance/
 *.db
 .flaskenv

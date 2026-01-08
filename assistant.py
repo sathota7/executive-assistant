@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
-import anthropic
 from google_services import GoogleServices
+from llm_providers import get_llm_provider, LLMProvider
 
 # Try to import Reddit services (optional)
 try:
@@ -43,20 +43,39 @@ PRIORITY_KEYWORDS = [
 
 
 class ExecutiveAssistant:
-    def __init__(self, anthropic_api_key: Optional[str] = None):
-        # Load API key from parameter, environment variable, or .env file
-        api_key = anthropic_api_key or os.getenv('ANTHROPIC_API_KEY')
+    def __init__(
+        self,
+        llm_provider: Optional[str] = None,
+        llm_api_key: Optional[str] = None,
+        **llm_kwargs
+    ):
+        """
+        Initialize the Executive Assistant.
         
-        if not api_key:
+        Args:
+            llm_provider: LLM provider name ('claude', 'chatgpt', 'grok', 'llama', 'gemini')
+                         If None, uses LLM_PROVIDER env var or defaults to 'claude'
+            llm_api_key: API key for the LLM provider (optional, will use env vars if not provided)
+            **llm_kwargs: Additional arguments to pass to LLM provider (e.g., base_url for Ollama)
+        """
+        self.google = GoogleServices()
+        
+        # Initialize LLM provider
+        try:
+            if llm_api_key:
+                self.llm = get_llm_provider(llm_provider, api_key=llm_api_key, **llm_kwargs)
+            else:
+                self.llm = get_llm_provider(llm_provider, **llm_kwargs)
+        except Exception as e:
+            provider_name = llm_provider or os.getenv('LLM_PROVIDER', 'claude')
             raise ValueError(
-                "Anthropic API key not found. Please either:\n"
-                "1. Create a .env file with ANTHROPIC_API_KEY=your-key-here\n"
-                "2. Set the ANTHROPIC_API_KEY environment variable\n"
-                "3. Pass the key directly to ExecutiveAssistant()"
+                f"Failed to initialize LLM provider '{provider_name}': {e}\n\n"
+                f"Make sure you have:\n"
+                f"1. Set the appropriate API key in .env (e.g., {provider_name.upper()}_API_KEY)\n"
+                f"2. Installed the required package (see requirements.txt)\n"
+                f"3. Set LLM_PROVIDER={provider_name} in .env if not using default"
             )
         
-        self.google = GoogleServices()
-        self.client = anthropic.Anthropic(api_key=api_key)
         self.conversation_history = []
         self.tz = ZoneInfo(DEFAULT_TIMEZONE)
         self.state_file = 'assistant_state.json'
@@ -601,59 +620,84 @@ When creating events:
 4. Confirm the day and date with the user in your response"""
 
         # Initial API call
-        response = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            system=system_prompt,
-            tools=self._build_tools(),
-            messages=self.conversation_history
+        tools = self._build_tools()
+        response = self.llm.create_message(
+            messages=self.conversation_history,
+            system_prompt=system_prompt,
+            tools=tools if tools else None,
+            max_tokens=4096
         )
         
         # Handle tool use in a loop
-        while response.stop_reason == "tool_use":
+        stop_reason = self.llm.get_stop_reason(response)
+        max_iterations = 10  # Prevent infinite loops
+        iteration = 0
+        
+        while stop_reason == "tool_use" and iteration < max_iterations:
+            iteration += 1
             tool_results = []
-            assistant_content = response.content
             
-            for block in response.content:
-                if block.type == "tool_use":
-                    print(f"DEBUG: Tool called: {block.name}")
-                    print(f"DEBUG: Tool input: {json.dumps(block.input, indent=2)}")
-                    result = self._execute_tool(block.name, block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result
-                    })
+            # Extract tool calls from response
+            tool_uses = self.llm.extract_tool_use(response)
+            if not tool_uses:
+                # No tool calls found, break the loop
+                break
+            
+            # Store original assistant response for history (provider-specific)
+            assistant_response_content = response.content if hasattr(response, 'content') else None
+            
+            for tool_call in tool_uses:
+                print(f"DEBUG: Tool called: {tool_call['name']}")
+                print(f"DEBUG: Tool input: {json.dumps(tool_call['input'], indent=2)}")
+                result = self._execute_tool(tool_call['name'], tool_call['input'])
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_call.get('id', ''),
+                    "content": result
+                })
             
             # Add assistant's response and tool results to history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": assistant_content
-            })
+            # Format depends on provider
+            if assistant_response_content:
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_response_content
+                })
+            else:
+                # Fallback format for providers without content attribute
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": [{"type": "tool_use", "tool_use_id": tc.get('id'), "name": tc.get('name'), "input": tc.get('input')} for tc in tool_uses]
+                })
+            
             self.conversation_history.append({
                 "role": "user",
                 "content": tool_results
             })
             
             # Get next response
-            response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=4096,
-                system=system_prompt,
-                tools=self._build_tools(),
-                messages=self.conversation_history
+            response = self.llm.create_message(
+                messages=self.conversation_history,
+                system_prompt=system_prompt,
+                tools=tools if tools else None,
+                max_tokens=4096
             )
+            stop_reason = self.llm.get_stop_reason(response)
         
         # Extract final text response
-        final_response = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                final_response += block.text
+        final_response = self.llm.extract_text_from_response(response)
         
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": response.content
-        })
+        # Add to conversation history
+        if hasattr(response, 'content'):
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response.content
+            })
+        else:
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": final_response
+            })
         
         return final_response
 
@@ -666,13 +710,16 @@ def main():
     
     try:
         print("Initializing...")
-        assistant = ExecutiveAssistant()
+        # Get LLM provider from env var or default to claude
+        llm_provider = os.getenv('LLM_PROVIDER', 'claude')
+        assistant = ExecutiveAssistant(llm_provider=llm_provider)
         
         # Show current time for verification
         tz = ZoneInfo(DEFAULT_TIMEZONE)
         now = datetime.now(tz)
         print(f"✅ Connected to Gmail and Calendar")
-        print(f"✅ Connected to Claude API")
+        provider_name = os.getenv('LLM_PROVIDER', 'claude').upper()
+        print(f"✅ Connected to {provider_name} API")
         print(f"📅 Current time: {now.strftime('%A, %B %d, %Y at %I:%M %p %Z')}")
         print("=" * 50)
         

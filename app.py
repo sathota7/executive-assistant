@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import json
 import os
 from assistant import ExecutiveAssistant
+import os
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24).hex())
@@ -22,7 +23,10 @@ def get_assistant():
     global assistant
     if assistant is None:
         try:
-            assistant = ExecutiveAssistant()
+            # Get LLM provider from config (stored default or env var)
+            from llm_config import get_effective_provider
+            llm_provider = get_effective_provider()
+            assistant = ExecutiveAssistant(llm_provider=llm_provider)
         except Exception as e:
             print(f"Error initializing assistant: {e}")
             return None
@@ -245,6 +249,57 @@ def get_reddit_posts():
                 return jsonify({'error': f'Reddit not available: {str(e)}'}), 500
         
         return jsonify({'posts': posts})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/llm/providers', methods=['GET'])
+def get_llm_providers():
+    """Get available LLM providers"""
+    try:
+        from llm_config import get_available_providers, get_default_provider
+        
+        providers = get_available_providers()
+        default = get_default_provider()
+        
+        # If no default set, use first available
+        if not default:
+            for provider_id, info in providers.items():
+                if info['available']:
+                    default = provider_id
+                    break
+        
+        return jsonify({
+            'providers': providers,
+            'default': default
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/llm/provider', methods=['POST'])
+def set_llm_provider():
+    """Set the default LLM provider"""
+    try:
+        from llm_config import set_default_provider, check_provider_availability
+        
+        data = request.json
+        provider_id = data.get('provider')
+        
+        if not provider_id:
+            return jsonify({'error': 'Provider not specified'}), 400
+        
+        # Verify provider is available
+        if not check_provider_availability(provider_id):
+            return jsonify({'error': f'Provider {provider_id} is not available (missing credentials)'}), 400
+        
+        success = set_default_provider(provider_id)
+        
+        if success:
+            # Reset assistant instance so it reinitializes with new provider
+            global assistant
+            assistant = None
+            return jsonify({'success': True, 'provider': provider_id, 'message': 'Provider updated successfully'})
+        else:
+            return jsonify({'error': 'Failed to set provider'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

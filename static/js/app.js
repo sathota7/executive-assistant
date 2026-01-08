@@ -6,6 +6,7 @@ let displayedNewsCount = 10;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    loadLLMProviders();
     loadCalendar();
     loadEmails();
     loadNews('general');
@@ -22,6 +23,109 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// LLM Provider Management
+async function loadLLMProviders() {
+    try {
+        const response = await fetch('/api/llm/providers');
+        const data = await response.json();
+        
+        if (data.error) {
+            console.error('Error loading providers:', data.error);
+            return;
+        }
+        
+        const select = document.getElementById('llm-provider-select');
+        select.innerHTML = '';
+        
+        const providers = data.providers || {};
+        const defaultProvider = data.default || '';
+        
+        // Sort providers: available first, then unavailable
+        const sortedProviders = Object.entries(providers).sort((a, b) => {
+            if (a[1].available && !b[1].available) return -1;
+            if (!a[1].available && b[1].available) return 1;
+            return 0;
+        });
+        
+        for (const [providerId, providerInfo] of sortedProviders) {
+            const option = document.createElement('option');
+            option.value = providerId;
+            option.textContent = providerInfo.name;
+            
+            if (!providerInfo.available) {
+                option.disabled = true;
+                option.style.color = '#999';
+                option.style.fontStyle = 'italic';
+            }
+            
+            if (providerId === defaultProvider) {
+                option.selected = true;
+            }
+            
+            select.appendChild(option);
+        }
+    } catch (error) {
+        console.error('Error loading LLM providers:', error);
+        const select = document.getElementById('llm-provider-select');
+        select.innerHTML = '<option value="">Error loading providers</option>';
+    }
+}
+
+async function updateLLMProvider(providerId) {
+    if (!providerId) return;
+    
+    try {
+        const response = await fetch('/api/llm/provider', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ provider: providerId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            alert('Error: ' + data.error);
+            // Reload to restore previous selection
+            loadLLMProviders();
+            return;
+        }
+        
+        if (data.success) {
+            // Show brief notification and reload to apply changes
+            const select = document.getElementById('llm-provider-select');
+            const providerName = select.options[select.selectedIndex].textContent;
+            
+            // Show temporary notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #667eea;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-weight: 500;
+            `;
+            notification.textContent = `Switched to ${providerName}. Reloading...`;
+            document.body.appendChild(notification);
+            
+            // Reload after short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('Error updating LLM provider:', error);
+        alert('Error updating provider: ' + error.message);
+        loadLLMProviders(); // Restore on error
+    }
+}
 
 // Chat functionality
 async function sendMessage() {

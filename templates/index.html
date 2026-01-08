@@ -9,8 +9,18 @@
 <body>
     <div class="container">
         <header>
-            <h1>🤖 Executive Assistant</h1>
-            <p class="subtitle">Your personal productivity hub</p>
+            <div class="header-content">
+                <div>
+                    <h1>🤖 Executive Assistant</h1>
+                    <p class="subtitle">Your personal productivity hub</p>
+                </div>
+                <div class="llm-selector-container">
+                    <label for="llm-provider-select" class="llm-label">LLM:</label>
+                    <select id="llm-provider-select" class="llm-select" onchange="updateLLMProvider(this.value)">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+            </div>
         </header>
 
         <!-- Assistant and Email Section (Side by Side) -->

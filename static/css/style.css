@@ -23,6 +23,14 @@ header {
     margin-bottom: 40px;
 }
 
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
 header h1 {
     font-size: 3em;
     margin-bottom: 10px;
@@ -32,6 +40,60 @@ header h1 {
 .subtitle {
     font-size: 1.2em;
     opacity: 0.9;
+}
+
+/* LLM Provider Selector */
+.llm-selector-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.llm-label {
+    font-size: 1em;
+    font-weight: 500;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.llm-select {
+    padding: 8px 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.95em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 180px;
+}
+
+.llm-select:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.llm-select:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.llm-select option {
+    background: #667eea;
+    color: white;
+    padding: 8px;
+}
+
+.llm-select option:disabled {
+    background: #888;
+    color: #ccc;
+    font-style: italic;
+}
+
+.llm-select option:checked {
+    background: #764ba2;
 }
 
 .section {
@@ -624,6 +686,15 @@ header h1 {
     
     header h1 {
         font-size: 2em;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .llm-selector-container {
+        margin-top: 10px;
     }
 }
 
