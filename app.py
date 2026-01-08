@@ -126,17 +126,30 @@ def get_recent_emails():
             inbound_only=True  # Only show inbound emails
         )
         
-        # Format for display
+        # Format for display and prioritize response-requested emails
         email_list = []
-        for email in emails[:10]:  # Limit to 10
-            email_list.append({
+        response_required = []
+        regular_emails = []
+        
+        for email in emails:
+            email_item = {
                 'id': email.get('id'),
                 'from': email.get('from', ''),
                 'subject': email.get('subject', 'No subject'),
                 'snippet': email.get('snippet', ''),
                 'date': email.get('date', ''),
+                'requires_response': email.get('requires_response', False),
                 'gmail_link': f"https://mail.google.com/mail/u/0/#inbox/{email.get('id')}"
-            })
+            }
+            
+            if email_item['requires_response']:
+                response_required.append(email_item)
+            else:
+                regular_emails.append(email_item)
+        
+        # Sort: response-required emails first, then regular emails
+        email_list = response_required + regular_emails
+        email_list = email_list[:10]  # Limit to 10 total
         
         return jsonify({'emails': email_list})
     except Exception as e:
@@ -176,7 +189,7 @@ def manage_exclusions():
 def get_news():
     """Get news articles by topic"""
     topic = request.args.get('topic', 'general')
-    limit = int(request.args.get('limit', 15))  # Default to 15 for queue
+    limit = int(request.args.get('limit', 20))  # Default to 20 for queue (10 displayed + buffer)
     
     assistant = get_assistant()
     if not assistant or not assistant.news:

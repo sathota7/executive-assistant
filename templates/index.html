@@ -13,36 +13,39 @@
             <p class="subtitle">Your personal productivity hub</p>
         </header>
 
-        <!-- General Questions Section -->
-        <section class="section" id="general-questions">
-            <h2>General Questions</h2>
-            <div class="chat-container">
-                <div id="chat-messages" class="chat-messages"></div>
-                <div class="chat-input-container">
-                    <input type="text" id="chat-input" placeholder="Ask me anything... (e.g., 'Schedule lunch Tuesday at noon', 'When am I free this week?')" />
-                    <button id="send-button">Send</button>
+        <!-- Assistant and Email Section (Side by Side) -->
+        <div class="top-row-container">
+            <!-- Assistant Section -->
+            <section class="section side-by-side" id="assistant-section">
+                <h2>Assistant</h2>
+                <div class="chat-container">
+                    <div id="chat-messages" class="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="Ask me anything..." />
+                        <button id="send-button">Send</button>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
+
+            <!-- Email Updates Section -->
+            <section class="section side-by-side" id="email-section">
+                <div class="section-header">
+                    <h2>Email Updates</h2>
+                    <div class="header-buttons">
+                        <button class="btn-secondary" onclick="clearDismissedEmails()">Restore Dismissed</button>
+                        <button class="btn-secondary" onclick="showExclusionsModal()">Manage Exclusions</button>
+                    </div>
+                </div>
+                <div id="email-loading" class="loading">Loading emails...</div>
+                <div id="email-list" class="email-list scrollable"></div>
+            </section>
+        </div>
 
         <!-- Upcoming Calendar Section -->
         <section class="section" id="calendar-section">
             <h2>Upcoming Calendar Invites</h2>
             <div id="calendar-loading" class="loading">Loading calendar events...</div>
             <div id="calendar-events" class="tile-container"></div>
-        </section>
-
-        <!-- Email Updates Section -->
-        <section class="section" id="email-section">
-            <div class="section-header">
-                <h2>Email Updates</h2>
-                <div class="header-buttons">
-                    <button class="btn-secondary" onclick="clearDismissedEmails()">Restore Dismissed</button>
-                    <button class="btn-secondary" onclick="showExclusionsModal()">Manage Exclusions</button>
-                </div>
-            </div>
-            <div id="email-loading" class="loading">Loading emails...</div>
-            <div id="email-list" class="email-list"></div>
         </section>
 
         <!-- News Updates Section -->

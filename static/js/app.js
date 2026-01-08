@@ -2,7 +2,7 @@
 let dismissedEmails = JSON.parse(localStorage.getItem('dismissedEmails') || '[]');
 let currentNewsTopic = 'general';
 let newsQueue = [];
-let displayedNewsCount = 5;
+let displayedNewsCount = 10;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -102,8 +102,8 @@ async function loadCalendar() {
             <div class="tile calendar-tile ${event.is_priority ? 'priority' : ''}">
                 <div class="tile-title">${escapeHtml(event.title)}</div>
                 <div class="calendar-time">${event.start_display}</div>
-                ${event.location ? `<div class="tile-content">📍 ${escapeHtml(event.location)}</div>` : ''}
-                ${event.htmlLink ? `<a href="${event.htmlLink}" target="_blank" class="tile-link">Open in Calendar →</a>` : ''}
+                ${event.location ? `<div class="tile-content" style="-webkit-line-clamp: 2;">📍 ${escapeHtml(event.location)}</div>` : ''}
+                ${event.htmlLink ? `<a href="${event.htmlLink}" target="_blank" class="tile-link">Open →</a>` : ''}
             </div>
         `).join('');
         
@@ -135,8 +135,15 @@ async function loadEmails() {
             return;
         }
         
-        // Filter out dismissed emails
-        const filteredEmails = data.emails.filter(email => !dismissedEmails.includes(email.id));
+        // Filter out dismissed emails and maintain sorting (response-required first)
+        const filteredEmails = data.emails
+            .filter(email => !dismissedEmails.includes(email.id))
+            .sort((a, b) => {
+                // Sort: response-required emails first
+                if (a.requires_response && !b.requires_response) return -1;
+                if (!a.requires_response && b.requires_response) return 1;
+                return 0;
+            });
         
         if (filteredEmails.length === 0) {
             container.innerHTML = '<p>No new emails</p>';
@@ -144,8 +151,9 @@ async function loadEmails() {
         }
         
         container.innerHTML = filteredEmails.map(email => `
-            <div class="email-item" data-email-id="${email.id}">
+            <div class="email-item ${email.requires_response ? 'response-required' : ''}" data-email-id="${email.id}">
                 <button class="dismiss-btn" onclick="dismissEmail('${email.id}')" title="Dismiss">×</button>
+                ${email.requires_response ? '<div class="response-badge">⚠️ Response Requested</div>' : ''}
                 <div class="email-header">
                     <div class="email-from">${escapeHtml(email.from)}</div>
                     <div class="email-date">${email.date}</div>
@@ -197,7 +205,7 @@ async function loadNews(topic) {
     const container = document.getElementById('news-articles');
     
     currentNewsTopic = topic;
-    displayedNewsCount = 5;
+    displayedNewsCount = 10;
     
     // Update active button
     document.querySelectorAll('.news-toggle').forEach(btn => {
@@ -252,10 +260,16 @@ function renderNewsArticles() {
             <button class="dismiss-btn" onclick="dismissNews(${index})" title="Dismiss">×</button>
             <div class="tile-title">${escapeHtml(article.title)}</div>
             <div class="tile-content">${escapeHtml(article.description || 'No description')}</div>
-            <div style="margin-top: 10px; color: #999; font-size: 0.85em;">Source: ${escapeHtml(article.source)}</div>
+            <div style="margin-top: 6px; color: #999; font-size: 0.75em;">Source: ${escapeHtml(article.source)}</div>
             ${article.url ? `<a href="${article.url}" target="_blank" class="tile-link">Read more →</a>` : ''}
         </div>
     `).join('');
+    
+    // Add empty slots to maintain 5x2 grid layout (10 articles)
+    const emptySlots = 10 - articlesToShow.length;
+    for (let i = 0; i < emptySlots; i++) {
+        container.innerHTML += '<div class="tile empty-slot"></div>';
+    }
 }
 
 function dismissNews(index) {

@@ -224,6 +224,37 @@ class GoogleServices:
             return email_addr.split('@')[1].lower()
         return ''
     
+    def _requires_response(self, email_data: dict) -> bool:
+        """Check if an email appears to request a response."""
+        subject = email_data.get('subject', '').lower()
+        snippet = email_data.get('snippet', '').lower()
+        
+        # Keywords that indicate a response is requested
+        response_keywords = [
+            'please reply', 'please respond', 'please get back', 'please let me know',
+            'can you', 'could you', 'would you', 'can we', 'could we', 'would we',
+            'respond', 'reply', 'feedback', 'thoughts?', 'thoughts on', 'input',
+            'your thoughts', 'your feedback', 'need your', 'awaiting your',
+            'waiting for', 'waiting on', 'need response', 'response needed',
+            'response required', 'please confirm', 'confirm', 'confirming',
+            'follow up', 'follow-up', 'schedule', 'meeting', 'call',
+            'question', 'questions', 'inquiry', 'inquiries', 'urgent'
+        ]
+        
+        # Check subject and snippet
+        text_to_check = f"{subject} {snippet}"
+        
+        # Look for response keywords
+        for keyword in response_keywords:
+            if keyword in text_to_check:
+                return True
+        
+        # Check for question marks (often indicates a question needs answering)
+        if '?' in subject:
+            return True
+        
+        return False
+    
     def get_user_email(self) -> str:
         """Get the user's email address."""
         try:
@@ -305,6 +336,9 @@ class GoogleServices:
             if exclude_promotional:
                 if self._is_promotional_email(email_info, exclusion_domains):
                     continue
+            
+            # Check if email requires a response
+            email_info['requires_response'] = self._requires_response(email_info)
             
             # Parse date for better formatting
             try:

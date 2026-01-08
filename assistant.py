@@ -364,71 +364,6 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
                     "type": "object",
                     "properties": {}
                 }
-            },
-            {
-                "name": "get_top_reddit_posts",
-                "description": "Get the top hottest posts from Reddit subreddits the user is subscribed to.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "limit": {
-                            "type": "integer",
-                            "description": "Number of top posts to return (default 10)"
-                        },
-                        "time_filter": {
-                            "type": "string",
-                            "description": "Time period: 'hour', 'day', 'week', 'month', 'year', 'all' (default 'day')",
-                            "enum": ["hour", "day", "week", "month", "year", "all"]
-                        }
-                    }
-                }
-            },
-            {
-                "name": "get_top_news",
-                "description": "Get top news articles for a specific topic. Topics include: general, business, marketing, stocks, technology, sports, entertainment, health, science.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "topic": {
-                            "type": "string",
-                            "description": "News topic: 'general', 'business', 'marketing', 'stocks', 'technology', 'sports', 'entertainment', 'health', 'science' (default: 'general')"
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Number of articles to return (default 5)"
-                        }
-                    }
-                }
-            },
-            {
-                "name": "send_email",
-                "description": "Send an email to one or more recipients. Use this when the user wants to send an email.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "to": {
-                            "type": "string",
-                            "description": "Recipient email address(es). For multiple recipients, use comma-separated list (e.g., 'user1@example.com, user2@example.com')"
-                        },
-                        "subject": {
-                            "type": "string",
-                            "description": "Email subject line"
-                        },
-                        "body": {
-                            "type": "string",
-                            "description": "Email body content (plain text)"
-                        },
-                        "cc": {
-                            "type": "string",
-                            "description": "CC email address(es) - comma-separated for multiple (optional)"
-                        },
-                        "bcc": {
-                            "type": "string",
-                            "description": "BCC email address(es) - comma-separated for multiple (optional)"
-                        }
-                    },
-                    "required": ["to", "subject", "body"]
-                }
             }
         ]
     
@@ -615,94 +550,6 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
                     "domains": domains
                 })
             
-            elif tool_name == "get_top_reddit_posts":
-                if not self.reddit:
-                    return json.dumps({
-                        "error": "Reddit services not available. Please set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in .env file."
-                    })
-                
-                limit = tool_input.get("limit", 10)
-                time_filter = tool_input.get("time_filter", "day")
-                
-                try:
-                    posts = self.reddit.get_top_posts_from_my_subreddits(
-                        time_filter=time_filter,
-                        total_limit=limit
-                    )
-                    
-                    return json.dumps({
-                        "count": len(posts),
-                        "time_filter": time_filter,
-                        "posts": posts
-                    }, default=str)
-                except Exception as e:
-                    return json.dumps({
-                        "error": f"Failed to fetch Reddit posts: {str(e)}"
-                    })
-            
-            elif tool_name == "get_top_news":
-                if not self.news:
-                    return json.dumps({
-                        "error": "News services not available. Please set NEWS_API_KEY in .env file or install feedparser for RSS feeds."
-                    })
-                
-                topic = tool_input.get("topic", "general")
-                limit = tool_input.get("limit", 5)
-                
-                try:
-                    articles = self.news.get_news_by_topic(topic=topic, limit=limit)
-                    
-                    return json.dumps({
-                        "count": len(articles),
-                        "topic": topic,
-                        "articles": articles
-                    }, default=str)
-                except Exception as e:
-                    return json.dumps({
-                        "error": f"Failed to fetch news: {str(e)}"
-                    })
-            
-            elif tool_name == "send_email":
-                to = tool_input.get("to", "").strip()
-                subject = tool_input.get("subject", "").strip()
-                body = tool_input.get("body", "").strip()
-                cc = tool_input.get("cc", "").strip() or None
-                bcc = tool_input.get("bcc", "").strip() or None
-                
-                if not to or not subject or not body:
-                    return json.dumps({
-                        "success": False,
-                        "error": "Missing required fields: to, subject, and body are required"
-                    })
-                
-                try:
-                    result = self.google.send_email(
-                        to=to,
-                        subject=subject,
-                        body=body,
-                        cc=cc,
-                        bcc=bcc
-                    )
-                    
-                    if result.get('success'):
-                        return json.dumps({
-                            "success": True,
-                            "message": f"Email sent successfully to {to}",
-                            "message_id": result.get('message_id')
-                        })
-                    else:
-                        return json.dumps({
-                            "success": False,
-                            "error": result.get('error', 'Unknown error'),
-                            "message": result.get('message', 'Failed to send email')
-                        })
-                except Exception as e:
-                    return json.dumps({
-                        "success": False,
-                        "error": str(e),
-                        "message": f"Failed to send email: {str(e)}"
-                    })
-            
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
         
         except Exception as e:
@@ -717,8 +564,8 @@ All times should be interpreted as Eastern Time unless otherwise specified."""
         
         time_context = self._get_current_time_context()
         
-        system_prompt = f"""You are an executive assistant with access to the user's Gmail, Google Calendar, Reddit, and News feeds.
-Your job is to help manage their schedule efficiently and keep them informed.
+        system_prompt = f"""You are an executive assistant with access to the user's Gmail and Google Calendar.
+Your job is to help manage their schedule efficiently.
 
 {time_context}
 
@@ -738,9 +585,6 @@ Key responsibilities:
 6. Delete events when requested
 7. Provide email updates since last login (automatically on startup)
 8. Manage exclusion list for filtering promotional emails
-9. Show top Reddit posts from subscribed subreddits (automatically on startup)
-10. Show top news articles by topic (automatically on startup with general news)
-11. Send emails with recipient, subject, body, and optional CC/BCC
 
 DELETING EVENTS:
 - When the user asks to delete/remove/cancel an event, first use find_event to search for it
@@ -850,35 +694,11 @@ def main():
             except Exception as e:
                 print(f"⚠️  Could not fetch email updates: {e}\n")
         
-        # Show top Reddit posts
-        if assistant.reddit:
-            print("🔴 Fetching top Reddit posts from your subscribed subreddits...")
-            try:
-                reddit_response = assistant.chat("Show me the top 10 hottest posts from Reddit subreddits I'm subscribed to. Format them nicely with title, subreddit, upvotes, and link.")
-                print(f"\n{reddit_response}\n")
-            except Exception as e:
-                print(f"⚠️  Could not fetch Reddit posts: {e}\n")
-        else:
-            print("ℹ️  Reddit integration not configured. Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in .env to enable.")
-        
-        # Show top news articles
-        if assistant.news:
-            print("📰 Fetching top news articles...")
-            try:
-                news_response = assistant.chat("Show me the top 5 news articles for general/current events. Format them nicely with title, source, description, and link.")
-                print(f"\n{news_response}\n")
-            except Exception as e:
-                print(f"⚠️  Could not fetch news: {e}\n")
-        else:
-            print("ℹ️  News integration not configured. Set NEWS_API_KEY in .env to enable NewsAPI, or install feedparser for RSS feeds.")
-        
         print("=" * 50)
         print("\nHow to use:")
         print("  • Type naturally: 'Schedule lunch Tuesday at noon'")
         print("  • Ask questions: 'When am I free this week?'")
         print("  • Email updates: 'Show me new emails' or 'What emails do I have?'")
-        print("  • Reddit posts: 'Show me top Reddit posts'")
-        print("  • News articles: 'Show me top news about business' or 'Get marketing news'")
         print("  • Manage exclusions: 'Add example.com to exclusion list'")
         print("  • Type 'quit' to exit")
         print("  • Type 'clear' to reset conversation")

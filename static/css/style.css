@@ -61,8 +61,12 @@ header h1 {
 
 .header-buttons {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
+}
+
+.side-by-side .header-buttons {
+    gap: 5px;
 }
 
 .section-header h2 {
@@ -70,11 +74,63 @@ header h1 {
     border-bottom: none;
 }
 
+/* Top Row Container (Assistant + Email) */
+.top-row-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.side-by-side {
+    margin-bottom: 0;
+}
+
+.side-by-side .section-header {
+    margin-bottom: 10px;
+}
+
+.side-by-side .section-header h2 {
+    font-size: 1.5em;
+    margin-bottom: 0;
+}
+
+.side-by-side h2 {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+}
+
 /* Chat Section */
 .chat-container {
     display: flex;
     flex-direction: column;
-    height: 400px;
+    height: 200px;
+}
+
+/* Email List Section */
+.email-list.scrollable {
+    max-height: 130px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 5px;
+}
+
+.email-list.scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.email-list.scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.email-list.scrollable::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.email-list.scrollable::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .chat-messages {
@@ -82,16 +138,19 @@ header h1 {
     overflow-y: auto;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
+    padding: 10px;
+    margin-bottom: 10px;
     background: #f9f9f9;
+    font-size: 0.9em;
 }
 
 .message {
-    margin-bottom: 15px;
-    padding: 12px;
-    border-radius: 8px;
-    max-width: 80%;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    max-width: 85%;
+    font-size: 0.9em;
+    line-height: 1.4;
 }
 
 .message.user {
@@ -113,10 +172,10 @@ header h1 {
 
 #chat-input {
     flex: 1;
-    padding: 12px;
+    padding: 8px 12px;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
-    font-size: 1em;
+    font-size: 0.9em;
 }
 
 #chat-input:focus {
@@ -125,13 +184,13 @@ header h1 {
 }
 
 #send-button {
-    padding: 12px 30px;
+    padding: 8px 20px;
     background: #667eea;
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 1em;
+    font-size: 0.9em;
     font-weight: bold;
     transition: background 0.3s;
 }
@@ -151,36 +210,43 @@ header h1 {
 #calendar-events {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 20px;
+    gap: 15px;
+}
+
+/* News articles: 5 columns, 2 rows */
+#news-articles {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
 }
 
 .tile {
     background: #f9f9f9;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
-    padding: 20px;
+    padding: 12px 15px;
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
     position: relative;
 }
 
 .tile:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
 }
 
 /* Dismiss button */
 .dismiss-btn {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 28px;
-    height: 28px;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
     border: none;
     background: #ff6b6b;
     color: white;
     border-radius: 50%;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     opacity: 0;
@@ -224,16 +290,22 @@ header h1 {
 }
 
 .tile-title {
-    font-size: 1.2em;
+    font-size: 0.95em;
     font-weight: 600;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     color: #333;
+    line-height: 1.3;
 }
 
 .tile-content {
     color: #666;
-    font-size: 0.9em;
-    margin-bottom: 10px;
+    font-size: 0.8em;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .tile-link {
@@ -241,7 +313,8 @@ header h1 {
     text-decoration: none;
     font-weight: 500;
     display: inline-block;
-    margin-top: 10px;
+    margin-top: 6px;
+    font-size: 0.85em;
 }
 
 .tile-link:hover {
@@ -258,27 +331,58 @@ header h1 {
     color: #667eea;
     font-weight: 600;
     margin-bottom: 5px;
+    font-size: 0.85em;
+}
+
+.calendar-tile .tile-title {
+    font-size: 0.9em;
+    margin-bottom: 6px;
 }
 
 /* Email List */
 .email-list {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
 }
 
 .email-item {
     background: #f9f9f9;
     border-left: 4px solid #667eea;
-    padding: 15px;
-    padding-right: 45px;
-    border-radius: 8px;
+    padding: 10px 12px;
+    padding-right: 35px;
+    border-radius: 6px;
     transition: transform 0.2s, opacity 0.3s;
     position: relative;
+    font-size: 0.85em;
+    flex-shrink: 0;
 }
 
 .email-item:hover {
     transform: translateX(5px);
+}
+
+.email-item.response-required {
+    background: #fff5f5;
+    border-left: 4px solid #ff6b6b;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.2);
+}
+
+.email-item.response-required:hover {
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.response-badge {
+    position: absolute;
+    top: 6px;
+    right: 35px;
+    background: #ff6b6b;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.7em;
+    font-weight: 600;
+    z-index: 5;
 }
 
 .email-item .dismiss-btn {
@@ -293,30 +397,37 @@ header h1 {
 .email-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
+    align-items: center;
 }
 
 .email-from {
     font-weight: 600;
     color: #333;
+    font-size: 0.85em;
 }
 
 .email-date {
     color: #999;
-    font-size: 0.9em;
+    font-size: 0.75em;
 }
 
 .email-subject {
-    font-size: 1.1em;
+    font-size: 0.95em;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     color: #667eea;
 }
 
 .email-snippet {
     color: #666;
-    font-size: 0.9em;
-    margin-bottom: 10px;
+    font-size: 0.8em;
+    margin-bottom: 6px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .email-link {
@@ -383,8 +494,14 @@ header h1 {
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    font-size: 1em;
     font-weight: 500;
     transition: background 0.3s;
+}
+
+.side-by-side .btn-secondary {
+    padding: 6px 12px;
+    font-size: 0.8em;
 }
 
 .btn-secondary:hover {
@@ -484,11 +601,19 @@ header h1 {
 
 /* Responsive */
 @media (max-width: 768px) {
+    .top-row-container {
+        grid-template-columns: 1fr;
+    }
+    
     .tile-container {
         grid-template-columns: 1fr;
     }
     
     #calendar-events {
+        grid-template-columns: 1fr;
+    }
+    
+    #news-articles {
         grid-template-columns: 1fr;
     }
     
@@ -506,10 +631,18 @@ header h1 {
     #calendar-events {
         grid-template-columns: repeat(3, 1fr);
     }
+    
+    #news-articles {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 @media (max-width: 1200px) {
     #calendar-events {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    #news-articles {
         grid-template-columns: repeat(2, 1fr);
     }
 }
